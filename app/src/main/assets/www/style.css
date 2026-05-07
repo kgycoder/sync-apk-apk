@@ -3709,4 +3709,4 @@ body.maximized {
     width: 46px;
     height: 46px;
 }
-
+* { -webkit-tap-highlight-color: transparent !important; outline: none !important; }
