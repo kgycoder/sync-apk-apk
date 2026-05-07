@@ -7,6 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>SYNC</title>
     <link rel="stylesheet" href="style.css">
+    <!-- YouTube IFrame API: 직접 로드 (file:// 컨텍스트에서 동적 로드 불가 우회) -->
+    <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body>
 
@@ -14,8 +16,6 @@
     <canvas id="bgc"></canvas>
     <div class="bg-over"></div>
     <div class="bg-grain"></div>
-
-    <!-- ▌ANDROID: No title bar — safe area padding applied via CSS ▐ -->
 
     <!-- ▌MOBILE BOTTOM NAV ▐ -->
     <nav id="mob-nav">
@@ -64,7 +64,6 @@
             <!-- HOME VIEW -->
             <div class="view on" id="v-home">
                 <div class="view-inner">
-                    <!-- Header area -->
                     <div class="mob-header">
                         <div class="mob-logo">
                             <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
@@ -80,7 +79,6 @@
                         <p class="mob-greet-sub">오늘은 어떤 음악을 들을까요?</p>
                     </div>
 
-                    <!-- Search bar -->
                     <div class="mob-srch-wrap">
                         <svg class="srch-ico" width="15" height="15" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5" stroke-linecap="round">
                             <circle cx="6" cy="6" r="4"/>
@@ -180,7 +178,6 @@
             <!-- PLAYLISTS VIEW -->
             <div class="view" id="v-playlists">
                 <div class="view-inner">
-                    <!-- 플레이리스트 목록 -->
                     <div id="pl-list-view">
                         <div class="mob-header">
                             <div style="display:flex;justify-content:space-between;align-items:center">
@@ -196,8 +193,6 @@
                         </div>
                         <div id="pl-grid"></div>
                     </div>
-
-                    <!-- 플레이리스트 상세 -->
                     <div id="pl-detail-view" style="display:none">
                         <div class="mob-header">
                             <button class="pl-back-btn" onclick="plShowList()">
@@ -228,7 +223,7 @@
 
         </main>
 
-        <!-- ▌MINI PLAYER BAR (bottom, above nav) ▐ -->
+        <!-- ▌MINI PLAYER BAR ▐ -->
         <div id="bar" class="bar-hidden">
             <div class="bar-inner">
                 <img id="b-art" class="bt-art" src="" alt="" onclick="openNP()">
@@ -255,11 +250,10 @@
                     </svg>
                 </button>
             </div>
-            <!-- mini progress -->
             <div class="bar-prog"><div class="bar-prog-fill" id="bar-prog-fill"></div></div>
         </div>
 
-    </div><!-- #shell -->
+    </div>
 
     <!-- ▌NOW PLAYING OVERLAY ▐ -->
     <div id="np">
@@ -275,7 +269,6 @@
             </svg>
         </button>
 
-        <!-- Album art area -->
         <div class="np-art-area">
             <div class="np-art-shell" id="np-ash">
                 <img id="np-art" src="" alt="">
@@ -283,7 +276,6 @@
                 <div class="np-art-glow" id="np-art-glow"></div>
                 <div class="np-pulse" id="np-pulse"></div>
             </div>
-            <!-- Lyrics panel (portrait mode inline) -->
             <div class="np-lyrics-panel" id="np-lyrics-panel">
                 <div class="np-lyrics-scroll" id="np-lyrics-scroll">
                     <div class="np-lyrics-inner" id="np-lyrics-inner"></div>
@@ -293,7 +285,6 @@
             </div>
         </div>
 
-        <!-- Controls panel -->
         <div class="np-panel">
             <div class="np-info-row">
                 <div class="np-meta">
@@ -352,7 +343,6 @@
                 </button>
             </div>
 
-            <!-- volume + echo -->
             <div class="np-bottom-row">
                 <div class="np-vol">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.3" stroke-linecap="round">
@@ -373,7 +363,6 @@
             </div>
         </div>
 
-        <!-- Fullscreen lyrics (landscape) -->
         <div id="np-fs-lyrics">
             <div id="np-fs-lyrics-inner"></div>
         </div>
@@ -453,11 +442,30 @@
 
     <div id="toast"></div>
 
-    <!-- Hidden inputs for compatibility -->
     <input type="range" id="vol-sl" min="0" max="100" value="80" style="display:none" oninput="setVol(+this.value)">
     <input type="range" id="echo-sl-bar" min="0" max="100" value="0" style="display:none" oninput="setEcho(+this.value)">
     <input type="range" id="echo-sl" min="0" max="100" value="0" style="display:none" oninput="setEcho(+this.value)">
 
     <script src="app.js"></script>
+
+    <!-- AndroidBridge 준비 후 홈 추천 로드 -->
+    <script>
+    (function waitBridge() {
+        // AndroidBridge는 WebView가 완전히 로드된 후 주입됨
+        // app.js의 initYt()가 이미 YT API를 <head>에서 로드했으므로
+        // 브릿지만 준비되면 loadRec 호출 가능
+        function tryLoad() {
+            if (typeof window.AndroidBridge !== 'undefined' &&
+                typeof window.loadRec === 'function') {
+                loadRec('pop music 2024 official mv', 'rec-row');
+                loadRec('kpop 2024 mv official', 'hot-row');
+            } else {
+                setTimeout(tryLoad, 150);
+            }
+        }
+        tryLoad();
+    })();
+    </script>
+
 </body>
 </html>
