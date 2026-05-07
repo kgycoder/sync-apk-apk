@@ -31,7 +31,7 @@ jobs:
 
       # ── 4. Build DEBUG APK ──────────────────────────────────
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktraces
+        run: ./gradlew assembleDebug --stacktrace
 
       # ── 5. Build RELEASE APK (unsigned) ────────────────────
       #    If you want a signed release, add keystore secrets and
