@@ -2718,62 +2718,7 @@ setTimeout(() => toast('✦ SYNC에 오신 걸 환영해요'), 1000);
    ANDROID INTEGRATION
 ════════════════════════════════════════════ */
 
-// ── _renderLyrics 패치: Apple Music 스타일 래퍼 표시 ──
-const _origRenderLyricsMob = _renderLyrics;
-window._renderLyrics = _renderLyrics;
-
-// has-lyrics 클래스 추가 시 lyrics-panel-wrap도 표시
-const _lyricsMutObserver = new MutationObserver(() => {
-    const artArea = document.querySelector('.np-art-area');
-    const wrap = document.getElementById('np-lyrics-panel-wrap');
-    if (!artArea || !wrap) return;
-    const hasLyrics = artArea.classList.contains('has-lyrics');
-    wrap.classList.toggle('visible', hasLyrics);
-
-    // 인라인 메타(art-area 안) 동기화
-    const metaTitle = document.getElementById('np-title-meta');
-    const metaCh = document.getElementById('np-ch-meta');
-    const mainTitle = document.getElementById('np-title');
-    const mainCh = document.getElementById('np-ch');
-    if (metaTitle && mainTitle) metaTitle.textContent = mainTitle.textContent;
-    if (metaCh && mainCh) metaCh.textContent = mainCh.textContent;
-});
-const _artAreaEl = document.querySelector('.np-art-area');
-if (_artAreaEl) _lyricsMutObserver.observe(_artAreaEl, { attributes: true, attributeFilter: ['class'] });
-
-// playTrack 시 메타 동기화 보장
-const _origPlayTrackMeta = playTrack;
-
-// ── 가사 라인 활성화 시 스크롤 ──
-const _origStartLyricsTick = _startLyricsTick;
-function _scrollToActiveLyric(el) {
-    if (!el) return;
-    const scroll = document.getElementById('np-lyrics-scroll');
-    if (!scroll) return;
-    const lineTop = el.offsetTop;
-    const lineH = el.offsetHeight;
-    const scrollH = scroll.clientHeight;
-    const target = lineTop - scrollH * 0.38 + lineH / 2;
-    scroll.scrollTo({ top: target, behavior: 'smooth' });
-}
-
-// 가사 tick 후 스크롤 동기화 — 기존 _syncLyricsHighlight 래핑
-const _origSyncHighlight = window._syncLyricsHighlight || function(){};
-window._syncLyricsHighlight = function(idx) {
-    _origSyncHighlight(idx);
-    if (idx >= 0 && LY.lines[idx]?.el) {
-        _scrollToActiveLyric(LY.lines[idx].el);
-        // 인라인 메타 업데이트
-        const metaTitle = document.getElementById('np-title-meta');
-        const metaCh = document.getElementById('np-ch-meta');
-        const mainTitle = document.getElementById('np-title');
-        const mainCh = document.getElementById('np-ch');
-        if (metaTitle && mainTitle) metaTitle.textContent = mainTitle.textContent;
-        if (metaCh && mainCh) metaCh.textContent = mainCh.textContent;
-    }
-};
-
-// ── Android back 버튼 ──
+// ── 뒤로가기 ──────────────────────────────────
 window.__onAndroidBack = function() {
     const np = document.getElementById('np');
     if (np?.classList.contains('on')) { closeNP(); return; }
@@ -2782,18 +2727,15 @@ window.__onAndroidBack = function() {
     if (document.getElementById('pl-add-modal-overlay')?.classList.contains('on')) { plAddModalClose(); return; }
 };
 
-// ── 가로/세로 회전 ──
+// ── 가로/세로 전환 ─────────────────────────────
 function _onOrientationChange() {
     const isLandscape = window.innerWidth > window.innerHeight;
     const np = document.getElementById('np');
     if (!np) return;
     if (isLandscape && np.classList.contains('on')) {
         np.classList.add('fullscreen');
-        if (LY.lines.length > 0) {
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                _buildFsLyrics?.();
-            }));
-        }
+        if (LY.lines.length > 0)
+            requestAnimationFrame(() => requestAnimationFrame(() => { try { _buildFsLyrics(); } catch(e){} }));
         try { window.AndroidBridge.postMessage(JSON.stringify({ type: 'orientation', value: 'landscape' })); } catch {}
     } else {
         np.classList.remove('fullscreen');
@@ -2803,7 +2745,7 @@ function _onOrientationChange() {
 window.addEventListener('resize', _onOrientationChange);
 window.addEventListener('orientationchange', () => setTimeout(_onOrientationChange, 200));
 
-// ── 미니바 터치 seek ──
+// ── 미니바 프로그레스 터치 seek ────────────────
 const _barEl = document.getElementById('bar');
 if (_barEl) {
     _barEl.addEventListener('touchstart', e => {
@@ -2818,16 +2760,78 @@ if (_barEl) {
     }, { passive: false });
 }
 
-// ── suggestqueries: touchend로 선택 ──
-document.addEventListener('touchend', e => {
-    const item = e.target.closest('.sug-item');
-    if (item) {
-        e.preventDefault();
-        const drop = item.closest('.sug-drop');
-        const text = item.dataset.query;
-        if (text && drop) {
-            drop.classList.remove('on');
-            doSearch(text);
+// ── 가사 _syncLyrics 패치: end 조건 완화 ──────
+// 반주 구간(found=-1)에서도 직전 가사를 유지해 "가사가 꺼지는" 현상 제거
+const _origSyncLyrics = _syncLyrics;
+function _syncLyrics() {
+    if (!S.ytPlayer || !S.ytReady || !LY.lines.length) return;
+    let cur;
+    try { cur = S.ytPlayer.getCurrentTime() || 0; } catch { return; }
+
+    const isFs = document.getElementById('np')?.classList.contains('fullscreen');
+
+    // fullscreen dot 카운트다운 (기존 로직 유지)
+    if (isFs && LY.lines[0].start > 0.5 && cur < LY.lines[0].start) {
+        const ratio = cur / LY.lines[0].start;
+        const lit = ratio > 0.90 ? 3 : ratio > 0.66 ? 2 : ratio > 0.33 ? 1 : 0;
+        if (LY.curIdx !== -1) { LY.curIdx = -1; _highlightLine(-1); }
+        if (LY._dotElFs && _fsDotsLit !== lit) {
+            _fsDotsLit = lit;
+            LY._dotElFs.querySelectorAll('.np-fs-dot').forEach((dot, i) => {
+                if (i < lit) dot.classList.add('on'); else dot.classList.remove('on');
+            });
+        }
+        return;
+    }
+    if (isFs && LY._dotElFs && _fsDotsLit !== -1) {
+        _fsDotsLit = -1;
+        LY._dotElFs.querySelectorAll('.np-fs-dot').forEach(d => d.classList.remove('on'));
+    }
+
+    // ── 현재 시간에 해당하는 줄 찾기 ──
+    // start <= cur 인 마지막 줄 → end 조건 없이 항상 표시 (반주구간도 유지)
+    let found = -1;
+    for (let i = LY.lines.length - 1; i >= 0; i--) {
+        if (cur >= LY.lines[i].start) {
+            found = i;
+            break;
         }
     }
+
+    if (found === LY.curIdx) return;
+    LY.curIdx = found;
+    _highlightLine(found);
+}
+
+// ── 가사 스크롤 최적화: 활성 라인을 화면 38% 위치에 ──
+const _origHighlightLine = _highlightLine;
+function _highlightLine(idx, instant) {
+    // fullscreen은 기존 로직 유지
+    if (document.getElementById('np')?.classList.contains('fullscreen')) {
+        _highlightFsLine(idx);
+        return;
+    }
+    LY.lines.forEach((line, i) => {
+        if (!line.el) return;
+        line.el.classList.remove('active', 'prev', 'near');
+        if (idx < 0) return;
+        const d = i - idx;
+        if (d === 0) line.el.classList.add('active');
+        else if (d === -1) line.el.classList.add('prev');
+        else if (d >= 1 && d <= 3) line.el.classList.add('near');
+    });
+    if (idx >= 0 && LY.lines[idx]?.el) {
+        const el = LY.lines[idx].el;
+        const scroll = document.getElementById('np-lyrics-scroll');
+        if (!scroll) return;
+        // 활성 라인을 스크롤 영역의 38% 지점에
+        const target = el.offsetTop - scroll.clientHeight * 0.38 + el.offsetHeight / 2;
+        scroll.scrollTo({ top: Math.max(0, target), behavior: instant ? 'instant' : 'smooth' });
+    }
+}
+
+// 카드 터치 재생
+document.addEventListener('touchend', e => {
+    const btn = e.target.closest('.c-play-btn');
+    if (btn) { e.preventDefault(); btn.click(); }
 }, { passive: false });
