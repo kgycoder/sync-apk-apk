@@ -1,4 +1,4 @@
-﻿/* ════════════════════════════════════════════
+/* ════════════════════════════════════════════
    DYNAMIC BACKGROUND — Canvas orbs + beat reactor
 ════════════════════════════════════════════ */
 const CVS = document.getElementById('bgc'), CX = CVS.getContext('2d');
@@ -2718,67 +2718,116 @@ setTimeout(() => toast('✦ SYNC에 오신 걸 환영해요'), 1000);
    ANDROID INTEGRATION
 ════════════════════════════════════════════ */
 
-// Android back button: close NP if open, else propagate
-window.__onAndroidBack = function() {
-    const np = document.getElementById('np');
-    if (np && np.classList.contains('on')) {
-        closeNP();
-        return;
-    }
-    // Could also close modals
-    if (document.getElementById('pl-dialog-overlay')?.classList.contains('on')) {
-        plDialogCancel(); return;
-    }
-    if (document.getElementById('pl-confirm-overlay')?.classList.contains('on')) {
-        plConfirmCancel(); return;
-    }
-    if (document.getElementById('pl-add-modal-overlay')?.classList.contains('on')) {
-        plAddModalClose(); return;
+// ── _renderLyrics 패치: Apple Music 스타일 래퍼 표시 ──
+const _origRenderLyricsMob = _renderLyrics;
+window._renderLyrics = _renderLyrics;
+
+// has-lyrics 클래스 추가 시 lyrics-panel-wrap도 표시
+const _lyricsMutObserver = new MutationObserver(() => {
+    const artArea = document.querySelector('.np-art-area');
+    const wrap = document.getElementById('np-lyrics-panel-wrap');
+    if (!artArea || !wrap) return;
+    const hasLyrics = artArea.classList.contains('has-lyrics');
+    wrap.classList.toggle('visible', hasLyrics);
+
+    // 인라인 메타(art-area 안) 동기화
+    const metaTitle = document.getElementById('np-title-meta');
+    const metaCh = document.getElementById('np-ch-meta');
+    const mainTitle = document.getElementById('np-title');
+    const mainCh = document.getElementById('np-ch');
+    if (metaTitle && mainTitle) metaTitle.textContent = mainTitle.textContent;
+    if (metaCh && mainCh) metaCh.textContent = mainCh.textContent;
+});
+const _artAreaEl = document.querySelector('.np-art-area');
+if (_artAreaEl) _lyricsMutObserver.observe(_artAreaEl, { attributes: true, attributeFilter: ['class'] });
+
+// playTrack 시 메타 동기화 보장
+const _origPlayTrackMeta = playTrack;
+
+// ── 가사 라인 활성화 시 스크롤 ──
+const _origStartLyricsTick = _startLyricsTick;
+function _scrollToActiveLyric(el) {
+    if (!el) return;
+    const scroll = document.getElementById('np-lyrics-scroll');
+    if (!scroll) return;
+    const lineTop = el.offsetTop;
+    const lineH = el.offsetHeight;
+    const scrollH = scroll.clientHeight;
+    const target = lineTop - scrollH * 0.38 + lineH / 2;
+    scroll.scrollTo({ top: target, behavior: 'smooth' });
+}
+
+// 가사 tick 후 스크롤 동기화 — 기존 _syncLyricsHighlight 래핑
+const _origSyncHighlight = window._syncLyricsHighlight || function(){};
+window._syncLyricsHighlight = function(idx) {
+    _origSyncHighlight(idx);
+    if (idx >= 0 && LY.lines[idx]?.el) {
+        _scrollToActiveLyric(LY.lines[idx].el);
+        // 인라인 메타 업데이트
+        const metaTitle = document.getElementById('np-title-meta');
+        const metaCh = document.getElementById('np-ch-meta');
+        const mainTitle = document.getElementById('np-title');
+        const mainCh = document.getElementById('np-ch');
+        if (metaTitle && mainTitle) metaTitle.textContent = mainTitle.textContent;
+        if (metaCh && mainCh) metaCh.textContent = mainCh.textContent;
     }
 };
 
-// Landscape = fullscreen NP (if NP is open)
-let _lastOrientation = screen.orientation?.type || '';
+// ── Android back 버튼 ──
+window.__onAndroidBack = function() {
+    const np = document.getElementById('np');
+    if (np?.classList.contains('on')) { closeNP(); return; }
+    if (document.getElementById('pl-dialog-overlay')?.classList.contains('on')) { plDialogCancel(); return; }
+    if (document.getElementById('pl-confirm-overlay')?.classList.contains('on')) { plConfirmCancel(); return; }
+    if (document.getElementById('pl-add-modal-overlay')?.classList.contains('on')) { plAddModalClose(); return; }
+};
+
+// ── 가로/세로 회전 ──
 function _onOrientationChange() {
     const isLandscape = window.innerWidth > window.innerHeight;
     const np = document.getElementById('np');
     if (!np) return;
     if (isLandscape && np.classList.contains('on')) {
         np.classList.add('fullscreen');
-        if (LY.lines.length > 0) _buildFsLyrics();
-        // Notify Android to go fullscreen
+        if (LY.lines.length > 0) {
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                _buildFsLyrics?.();
+            }));
+        }
         try { window.AndroidBridge.postMessage(JSON.stringify({ type: 'orientation', value: 'landscape' })); } catch {}
     } else {
         np.classList.remove('fullscreen');
-        _destroyFsLyrics();
         try { window.AndroidBridge.postMessage(JSON.stringify({ type: 'orientation', value: 'portrait' })); } catch {}
     }
 }
 window.addEventListener('resize', _onOrientationChange);
-window.addEventListener('orientationchange', () => setTimeout(_onOrientationChange, 150));
+window.addEventListener('orientationchange', () => setTimeout(_onOrientationChange, 200));
 
-// Touch on mini bar: seek via NP
+// ── 미니바 터치 seek ──
 const _barEl = document.getElementById('bar');
 if (_barEl) {
     _barEl.addEventListener('touchstart', e => {
-        // If touching progress area (bottom 4px)
         const rect = _barEl.getBoundingClientRect();
         const touch = e.touches[0];
-        if (touch.clientY > rect.bottom - 8) {
+        if (touch.clientY > rect.bottom - 10) {
             e.preventDefault();
             const pct = (touch.clientX - rect.left) / rect.width;
-            if (S.ytPlayer && S.ytReady && S.dur) {
+            if (S.ytPlayer && S.ytReady && S.dur)
                 S.ytPlayer.seekTo(pct * S.dur, true);
-            }
         }
     }, { passive: false });
 }
 
-// Touch-friendly: tap on card thumb plays directly
+// ── suggestqueries: touchend로 선택 ──
 document.addEventListener('touchend', e => {
-    const btn = e.target.closest('.c-play-btn');
-    if (btn) {
+    const item = e.target.closest('.sug-item');
+    if (item) {
         e.preventDefault();
-        btn.click();
+        const drop = item.closest('.sug-drop');
+        const text = item.dataset.query;
+        if (text && drop) {
+            drop.classList.remove('on');
+            doSearch(text);
+        }
     }
 }, { passive: false });
