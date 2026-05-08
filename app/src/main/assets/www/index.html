@@ -256,6 +256,7 @@
     </div>
 
     <!-- ▌NOW PLAYING OVERLAY ▐ -->
+<!-- ▌NOW PLAYING OVERLAY ▐ -->
     <div id="np">
         <canvas id="np-bg"></canvas>
         <div class="np-grain"></div>
@@ -263,12 +264,14 @@
         <canvas id="np-particles"></canvas>
 
         <button class="np-x" onclick="closeNP()">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="rgba(255,255,255,.8)" stroke-width="1.9" stroke-linecap="round">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+                 stroke="rgba(255,255,255,.8)" stroke-width="1.9" stroke-linecap="round">
                 <line x1="1.5" y1="1.5" x2="11.5" y2="11.5"/>
                 <line x1="11.5" y1="1.5" x2="1.5" y2="11.5"/>
             </svg>
         </button>
 
+        <!-- 앨범아트 영역 (가사 없음: 중앙 / 가사 있음: 상단 좌측 작게) -->
         <div class="np-art-area">
             <div class="np-art-shell" id="np-ash">
                 <img id="np-art" src="" alt="">
@@ -276,15 +279,21 @@
                 <div class="np-art-glow" id="np-art-glow"></div>
                 <div class="np-pulse" id="np-pulse"></div>
             </div>
-            <div class="np-lyrics-panel" id="np-lyrics-panel">
-                <div class="np-lyrics-scroll" id="np-lyrics-scroll">
-                    <div class="np-lyrics-inner" id="np-lyrics-inner"></div>
-                </div>
-                <div class="np-lyrics-fade-top"></div>
-                <div class="np-lyrics-fade-bot"></div>
+            <!-- 가사 있을 때 인라인 메타 -->
+            <div class="np-art-area-meta">
+                <div class="np-title" id="np-title-meta">—</div>
+                <div class="np-ch" id="np-ch-meta">—</div>
             </div>
         </div>
 
+        <!-- Apple Music 스타일 가사 패널 (art-area와 panel 사이) -->
+        <div id="np-lyrics-panel-wrap">
+            <div class="np-lyrics-scroll" id="np-lyrics-scroll">
+                <div class="np-lyrics-inner" id="np-lyrics-inner"></div>
+            </div>
+        </div>
+
+        <!-- 컨트롤 패널 -->
         <div class="np-panel">
             <div class="np-info-row">
                 <div class="np-meta">
@@ -292,7 +301,8 @@
                     <div id="np-ch" class="np-ch">—</div>
                 </div>
                 <button class="np-act" id="np-fav" onclick="favCur()">
-                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1.5" stroke-linecap="round">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"
+                         stroke="rgba(255,255,255,.5)" stroke-width="1.5" stroke-linecap="round">
                         <path d="M11 18.5S3 13.5 3 8.5a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 19 8.5C19 13.5 11 18.5 11 18.5z"/>
                     </svg>
                 </button>
@@ -311,7 +321,8 @@
 
             <div class="np-ctrl">
                 <button class="nc" id="nc-sh" onclick="toggleShuf()">
-                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"
+                         stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
                         <path d="M3 7h3a6 6 0 0 1 5 2.7l.3.3M19 7h-3a6 6 0 0 0-5 2.7l-.3.3"/>
                         <path d="M3 15h3a6 6 0 0 0 5-2.7l.3-.3M19 15h-3a6 6 0 0 1-5-2.7l-.3-.3"/>
                         <polyline points="17,5 19,7 17,9"/>
@@ -319,22 +330,27 @@
                     </svg>
                 </button>
                 <button class="nc" onclick="prevT()">
-                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none"
+                         stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
                         <polygon points="22,4 10,14 22,24" fill="currentColor" stroke="none"/>
                         <line x1="6" y1="4" x2="6" y2="24"/>
                     </svg>
                 </button>
                 <button class="nc nc-play" id="nc-play" onclick="togglePlay()">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#08080d"><polygon points="7,4 20,12 7,20"/></svg>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#08080d">
+                        <polygon points="7,4 20,12 7,20"/>
+                    </svg>
                 </button>
                 <button class="nc" onclick="nextT()">
-                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none"
+                         stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
                         <polygon points="6,4 18,14 6,24" fill="currentColor" stroke="none"/>
                         <line x1="22" y1="4" x2="22" y2="24"/>
                     </svg>
                 </button>
                 <button class="nc" id="nc-rep" onclick="toggleRep()">
-                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none"
+                         stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
                         <polyline points="1,5 4,2 7,5"/>
                         <path d="M4 2v9a5 5 0 0 0 5 5h5"/>
                         <polyline points="21,17 18,20 15,17"/>
@@ -345,12 +361,14 @@
 
             <div class="np-bottom-row">
                 <div class="np-vol">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.3" stroke-linecap="round">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                         stroke="rgba(255,255,255,.35)" stroke-width="1.3" stroke-linecap="round">
                         <path d="M2 5H0.5v4H2l3 2.5v-9L2 5z"/>
                     </svg>
                     <input type="range" class="np-sl" id="np-vol-sl" min="0" max="100" value="80"
                            oninput="setVol(+this.value);document.getElementById('vol-sl').value=this.value">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.3" stroke-linecap="round">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+                         stroke="rgba(255,255,255,.35)" stroke-width="1.3" stroke-linecap="round">
                         <path d="M2 5H0.5v4H2l3 2.5v-9L2 5z"/>
                         <path d="M9.5 4a4 4 0 0 1 0 6M12 2a7 7 0 0 1 0 10"/>
                     </svg>
@@ -363,6 +381,7 @@
             </div>
         </div>
 
+        <!-- Fullscreen lyrics (landscape) -->
         <div id="np-fs-lyrics">
             <div id="np-fs-lyrics-inner"></div>
         </div>
