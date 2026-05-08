@@ -3088,14 +3088,14 @@ body.maximized {
    ANDROID / MOBILE OVERRIDES
 ════════════════════════════════════════════════════════ */
 
-/* ── 1. 한글/전체 tap highlight, 포커스 아웃라인 제거 ── */
-* {
-    -webkit-tap-highlight-color: transparent !important;
-    outline: none !important;
-    /* 한글 폰트 강제 지정 — WebView 기본 serif 대체 방지 */
-    font-family:
-        'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic',
-        -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+/* ── 1. tap highlight 제거 ── */
+* { -webkit-tap-highlight-color: transparent !important; outline: none !important; }
+
+/* ── 2. 한글 폰트 — WebView 기본 폰트가 한글을 지원 안 할 때 대비
+        WebView는 시스템 한글 폰트(Noto Sans KR)를 이미 내장하므로
+        sans-serif 지정만으로도 올바른 한글이 렌더됨 ── */
+body, input, button, textarea, select {
+    font-family: -apple-system, 'Noto Sans KR', sans-serif !important;
 }
 
 /* ── Root tokens ── */
@@ -3106,39 +3106,27 @@ body.maximized {
     --safe-bot: env(safe-area-inset-bottom, 0px);
 }
 
-/* ── Scrollbar: hidden ── */
+/* ── Scrollbar 숨김 ── */
 * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
 ::-webkit-scrollbar { display: none !important; }
 
-/* ── Desktop titlebar: 숨김 ── */
+/* ── 데스크탑 요소 숨김 ── */
 #tbar { display: none !important; }
 
 /* ── Shell ── */
 #shell {
-    display: flex;
-    flex-direction: column;
-    width: 100vw;
-    height: 100dvh;
-    grid-template-columns: unset;
-    grid-template-rows: unset;
-    grid-template-areas: unset;
+    display: flex; flex-direction: column;
+    width: 100vw; height: 100dvh;
+    grid-template-columns: unset; grid-template-rows: unset; grid-template-areas: unset;
     overflow: hidden;
     padding-top: var(--safe-top);
 }
-
 #side { display: none !important; }
-
 #main {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-top: 0;
+    flex: 1; overflow-y: auto; overflow-x: hidden; padding-top: 0;
     padding-bottom: calc(var(--mini-h) + var(--nav-h) + var(--safe-bot) + 8px);
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    grid-area: unset;
+    -webkit-overflow-scrolling: touch; overscroll-behavior: contain; grid-area: unset;
 }
-
 .view-inner { padding: 0 16px; }
 
 /* ── Mobile header ── */
@@ -3149,7 +3137,7 @@ body.maximized {
 .mob-greet-sub { font-size: 13px; color: var(--t3); }
 .view-title { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
 
-/* ── Mobile search bar ── */
+/* ── Search bar ── */
 .mob-srch-wrap { position: relative; margin-bottom: 20px; }
 .mob-srch-wrap .srch-inp { width: 100%; max-width: 100%; padding: 13px 80px 13px 44px; font-size: 15px; border-radius: 16px; }
 .mob-srch-wrap .srch-ico { left: 14px; width: 16px; height: 16px; }
@@ -3170,20 +3158,15 @@ body.maximized {
 /* ── Bottom nav ── */
 #mob-nav {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
-    height: calc(var(--nav-h) + var(--safe-bot));
-    padding-bottom: var(--safe-bot);
+    height: calc(var(--nav-h) + var(--safe-bot)); padding-bottom: var(--safe-bot);
     background: rgba(5,5,14,0.92);
-    backdrop-filter: blur(40px) saturate(1.6);
-    -webkit-backdrop-filter: blur(40px) saturate(1.6);
-    border-top: 1px solid var(--glass-bd);
-    display: flex; align-items: stretch;
+    backdrop-filter: blur(40px) saturate(1.6); -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    border-top: 1px solid var(--glass-bd); display: flex; align-items: stretch;
 }
 .mn-btn {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 4px;
-    padding: 6px 0; color: var(--t4); font-size: 10px; font-weight: 500;
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 6px 0; color: var(--t4); font-size: 10px; font-weight: 500;
     transition: color 0.15s; border: none; background: none; cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
 }
 .mn-btn.on { color: var(--acc); }
 .mn-ico { width: 22px; height: 22px; flex-shrink: 0; }
@@ -3191,14 +3174,13 @@ body.maximized {
 .mn-btn.on .mn-ico line, .mn-btn.on .mn-ico polyline,
 .mn-btn.on .mn-ico rect { stroke: var(--acc); }
 
-/* ── Mini bar ── */
+/* ── Mini player bar ── */
 #bar {
     position: fixed; left: 0; right: 0;
     bottom: calc(var(--nav-h) + var(--safe-bot));
     z-index: 190; height: var(--mini-h);
     background: rgba(10,10,22,0.92);
-    backdrop-filter: blur(40px) saturate(1.6);
-    -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    backdrop-filter: blur(40px) saturate(1.6); -webkit-backdrop-filter: blur(40px) saturate(1.6);
     border-top: 1px solid rgba(255,255,255,0.07);
     display: block; padding: 0; grid-template-columns: unset; grid-area: unset;
     transition: transform 0.3s var(--ease);
@@ -3213,302 +3195,226 @@ body.maximized {
 .bar-play { width: 36px; height: 36px; border-radius: 50%; background: var(--t1); color: #08080d; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .bar-next { color: var(--t3); padding: 6px; flex-shrink: 0; }
 .bar-prog { height: 2px; background: rgba(255,255,255,0.08); position: absolute; bottom: 0; left: 0; right: 0; }
-.bar-prog-fill { height: 100%; background: var(--acc); width: 0%; transition: width 0.25s linear; pointer-events: none; }
+.bar-prog-fill { height: 100%; background: var(--acc); width: 0%; transition: width 0.25s linear; }
 .bc, .be, .pb-row, .p-cur, .p-tot { display: none !important; }
 #bar .vizz { display: none !important; }
 
-/* ── YouTube player hidden ── */
+/* ── YouTube 플레이어 숨김 ── */
 #yt-player-wrap {
     position: fixed; width: 1px; height: 1px; overflow: hidden;
     opacity: 0; pointer-events: none; top: -9999px; left: -9999px; z-index: -1;
 }
 
 /* ════════════════════════════════════════════════════════
-   NP LAYOUT — Apple Music 스타일 가사 중심 레이아웃
-   ─ 가사 없음: 앨범아트 중앙
-   ─ 가사 있음: 전체 화면을 가사가 채우고 앨범아트는 상단 작게
+   NP — Apple Music 스타일
+   세로: 앨범아트(상단 중앙) + 가사 스크롤 + 컨트롤(하단)
+   가로: 기존 fullscreen 레이아웃 유지
 ════════════════════════════════════════════════════════ */
 
-#np {
-    flex-direction: column;
-    overflow: hidden;
-}
+#np { flex-direction: column; overflow: hidden; }
 
+/* 닫기 버튼: safe area 아래 */
 .np-x {
     top: calc(var(--safe-top) + 12px);
-    left: 16px;
-    width: 38px; height: 38px;
-    z-index: 20;
+    left: 16px; width: 38px; height: 38px; z-index: 20;
 }
 
-/* ── 가사 없을 때: 앨범아트 중앙 배치 ── */
+/* ── 앨범아트 영역 ── */
+/* 기본(가사 없음): 세로 중앙 */
 .np-art-area {
-    flex: 1;
-    padding: 0 32px 12px;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    /* 상단 X버튼 아래 여백 */
-    padding-top: calc(var(--safe-top) + 56px);
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    /* 닫기 버튼 높이 확보 */
+    padding: calc(var(--safe-top) + 56px) 32px 16px;
 }
 
 .np-art-shell {
     width: min(300px, 82vw, 44vh);
-    transition: width 0.35s var(--ease);
+    transition: width 0.4s var(--ease), transform 0.4s var(--ease);
 }
 
-/* 가사 패널: 기본 숨김 */
+/* 가사 패널: 기본 숨김 (art-area 내부에 있지만 has-lyrics 없으면 안 보임) */
 .np-lyrics-panel {
-    display: none;
-    width: 100%;
-    flex: 1;
-    min-height: 0;
-    position: relative;
-    margin-top: 0;
+    width: 100%; flex: 1; min-height: 0;
+    display: none; /* has-lyrics 시 block으로 전환 */
+    position: relative; margin-top: 12px; overflow: hidden;
 }
 
-/* ── 가사 있을 때: Apple Music 스타일 ── */
-/* art-area가 화면 상단 영역만 차지 */
+/* ── 가사 있을 때: Apple Music 레이아웃 ── */
+/* art-area는 상단 고정 영역으로 축소 */
 .np-art-area.has-lyrics {
     flex: 0 0 auto;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 14px;
-    padding: calc(var(--safe-top) + 56px) 20px 12px;
+    flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: calc(var(--safe-top) + 56px) 24px 8px;
 }
 
-/* 가사 있을 때 앨범아트: 좌측 작게 */
+/* 앨범아트: 작게 */
 .np-art-area.has-lyrics .np-art-shell {
-    width: min(72px, 18vw);
-    flex-shrink: 0;
+    width: min(200px, 55vw, 28vh);
 }
 
-/* 가사 있을 때 메타 정보를 art-area 안에 인라인으로 */
-.np-art-area.has-lyrics ~ .np-panel .np-info-row {
-    display: none; /* 패널의 타이틀/채널 행 숨김 — art-area에 표시 */
+/* 가사 패널 표시 */
+.np-art-area.has-lyrics .np-lyrics-panel {
+    display: flex; flex-direction: column;
 }
 
-/* art-area 안에 메타 오버레이 */
-.np-art-area-meta {
-    flex: 1;
-    min-width: 0;
-    display: none;
-}
-.np-art-area.has-lyrics .np-art-area-meta {
-    display: block;
-}
-.np-art-area-meta .np-title {
-    font-size: 15px;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 2px;
-}
-.np-art-area-meta .np-ch {
-    font-size: 12px;
-    color: rgba(255,255,255,0.55);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* 가사 패널: 가사 있을 때 표시 */
-.np-art-area.has-lyrics + .np-lyrics-panel-wrap {
-    display: flex;
-}
-
-/* ── Apple Music 가사 스크롤 영역 ── */
-/* np-lyrics-panel을 art-area와 np-panel 사이에 flex:1로 배치 */
-#np-lyrics-panel-wrap {
-    flex: 1;
-    min-height: 0;
-    display: none;
-    flex-direction: column;
-    position: relative;
-    overflow: hidden;
-    padding: 0 24px;
-}
-#np-lyrics-panel-wrap.visible {
-    display: flex;
-}
-
+/* ── Apple Music 가사 스크롤 ── */
 .np-lyrics-scroll {
-    flex: 1;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    padding: 32px 0 40px;
-    scroll-behavior: smooth;
+    flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain; scroll-behavior: smooth;
+    padding: 16px 0 32px;
 }
 
 .np-lyrics-inner {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
+    display: flex; flex-direction: column; gap: 0;
+    padding: 0 8px;
 }
 
-/* Apple Music 가사 라인 스타일 */
+/* 가사 라인 — Apple Music 스타일 */
 .np-lyric-line {
-    font-size: 26px;
-    font-weight: 700;
-    line-height: 1.25;
-    padding: 10px 0;
-    color: rgba(255,255,255,0.25);    /* 비활성: 흐릿한 흰색 */
-    transition:
-        color 0.45s ease,
-        font-size 0.3s ease,
-        opacity 0.45s ease;
+    font-size: 24px; font-weight: 700; line-height: 1.3;
+    padding: 8px 0;
+    color: rgba(255,255,255,0.22);
+    transition: color 0.4s ease, font-size 0.35s ease;
     cursor: pointer;
-    word-break: keep-all;
-    overflow-wrap: break-word;
+    word-break: keep-all; overflow-wrap: break-word;
     letter-spacing: -0.3px;
 }
 
-/* 활성 라인: 흰색 + 크게 */
+/* 활성 라인 */
 .np-lyric-line.active {
     color: rgba(255,255,255,1);
-    font-size: 28px;
-    text-shadow: 0 0 32px rgba(255,255,255,0.35);
+    font-size: 26px;
+    text-shadow: 0 0 28px rgba(255,255,255,0.3);
 }
 
-/* 직전 라인: 살짝 밝게 */
+/* 직전 라인 */
 .np-lyric-line.prev {
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.42);
 }
 
-/* 다음 라인: 약간 밝게 */
+/* 다음 2~3줄 */
 .np-lyric-line.near {
-    color: rgba(255,255,255,0.35);
+    color: rgba(255,255,255,0.32);
 }
 
-.np-lyrics-fade-top,
-.np-lyrics-fade-bot { display: none; }
+/* 페이드 오버레이 */
+.np-lyrics-fade-top {
+    position: absolute; top: 0; left: 0; right: 0; height: 48px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 100%);
+    pointer-events: none; z-index: 2;
+}
+.np-lyrics-fade-bot {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 64px;
+    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%);
+    pointer-events: none; z-index: 2;
+}
 
 /* 로딩/없음 */
 .np-lyrics-loading {
     display: flex; flex-direction: column; align-items: center;
-    gap: 10px; padding: 40px 0; color: rgba(255,255,255,0.35); font-size: 13px;
+    gap: 10px; padding: 32px 0; color: rgba(255,255,255,0.3); font-size: 13px;
 }
 .np-no-lyrics {
-    text-align: center; color: rgba(255,255,255,0.25);
-    font-size: 13px; padding: 20px; position: static !important;
+    position: static !important; text-align: center;
+    color: rgba(255,255,255,0.25); font-size: 13px; padding: 16px;
 }
 
-/* ── Controls panel ── */
+/* ── 컨트롤 패널 ── */
 .np-panel {
-    padding: 8px 20px calc(var(--safe-bot) + 14px);
-    gap: 8px;
-    flex-shrink: 0;
+    padding: 10px 20px calc(var(--safe-bot) + 14px);
+    gap: 10px; flex-shrink: 0;
 }
-.np-info-row { margin-bottom: 0; }
 .np-title { font-size: 18px; }
 .np-ctrl { padding: 0 4px; }
 .nc-play { width: 56px; height: 56px; }
 .np-bottom-row { gap: 12px; }
 
-/* ── Overlay/pip 숨김 ── */
+/* ── 사용 안 하는 요소 ── */
 #ov-bar-wrap, #pip, #np-overlay-btn,
 .np-overlay-btn, .bt-overlay-btn { display: none !important; }
 
-/* ── Dialogs ── */
+/* ── 다이얼로그 ── */
 #pl-dialog-overlay, #pl-confirm-overlay, #pl-add-modal-overlay {
-    position: fixed; inset: 0; z-index: 600;
-    background: rgba(0,0,0,0.72);
+    position: fixed; inset: 0; z-index: 600; background: rgba(0,0,0,0.72);
     display: none; align-items: flex-end; justify-content: center;
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 #pl-dialog-overlay.on, #pl-confirm-overlay.on, #pl-add-modal-overlay.on { display: flex; }
 #pl-dialog, #pl-confirm {
-    width: 100%; max-width: 480px;
-    background: rgba(16,16,28,0.98);
-    border: 1px solid var(--glass-bd);
-    border-radius: 24px 24px 0 0;
+    width: 100%; max-width: 480px; background: rgba(16,16,28,0.98);
+    border: 1px solid var(--glass-bd); border-radius: 24px 24px 0 0;
     padding: 24px 24px calc(var(--safe-bot) + 24px);
 }
 #pl-add-modal {
-    width: 100%; max-width: 480px;
-    background: rgba(16,16,28,0.98);
-    border: 1px solid var(--glass-bd);
-    border-radius: 24px 24px 0 0;
+    width: 100%; max-width: 480px; background: rgba(16,16,28,0.98);
+    border: 1px solid var(--glass-bd); border-radius: 24px 24px 0 0;
     max-height: 80dvh; display: flex; flex-direction: column;
 }
 .pl-dialog-input, .pl-add-modal-inp { font-size: 16px; }
 
 /* ── Context menu ── */
 #pl-ctx-menu {
-    position: fixed; z-index: 500;
-    background: rgba(16,16,28,0.98);
-    border: 1px solid var(--glass-bd); border-radius: 18px;
-    min-width: 220px;
+    position: fixed; z-index: 500; background: rgba(16,16,28,0.98);
+    border: 1px solid var(--glass-bd); border-radius: 18px; min-width: 220px;
     backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-    padding: 6px; display: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6); padding: 6px; display: none;
 }
 #pl-ctx-menu.on { display: block; }
 
 /* ── Toast ── */
-#toast { bottom: calc(var(--mini-h) + var(--nav-h) + var(--safe-bot) + 12px); left: 50%; transform: translateX(-50%); }
+#toast {
+    bottom: calc(var(--mini-h) + var(--nav-h) + var(--safe-bot) + 12px);
+    left: 50%; transform: translateX(-50%);
+}
 
-/* ── Playlist UI ── */
+/* ── Playlist ── */
 .pl-new-btn {
-    display: flex; align-items: center; gap: 7px;
-    padding: 8px 16px;
+    display: flex; align-items: center; gap: 7px; padding: 8px 16px;
     background: rgba(250,45,90,0.14); border: 1px solid rgba(250,45,90,0.28);
-    border-radius: 50px; color: var(--acc); font-size: 13px; font-weight: 600;
-    cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+    border-radius: 50px; color: var(--acc); font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .pl-add-track-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 7px 14px;
+    display: inline-flex; align-items: center; gap: 5px; padding: 7px 14px;
     background: rgba(250,45,90,0.14); border: 1px solid rgba(250,45,90,0.28);
-    border-radius: 50px; color: var(--acc); font-size: 12px; font-weight: 600;
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    border-radius: 50px; color: var(--acc); font-size: 12px; font-weight: 600; cursor: pointer;
 }
 .pl-back-btn {
     display: inline-flex; align-items: center; gap: 7px;
-    color: var(--t2); font-size: 14px; font-weight: 600;
-    padding: 4px 0; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    color: var(--t2); font-size: 14px; font-weight: 600; padding: 4px 0; cursor: pointer;
 }
-.lcard { padding: 12px 8px; border-radius: 12px; -webkit-tap-highlight-color: transparent; }
+.lcard { padding: 12px 8px; border-radius: 12px; }
 .lcard-art { width: 46px; height: 46px; }
 
-/* ── Landscape: NP 가로 모드 ── */
+/* ════════════════════════════════════════════
+   Landscape NP
+════════════════════════════════════════════ */
 @media (orientation: landscape) {
     #mob-nav { display: none !important; }
     #bar { bottom: 0; }
 
     #np.fullscreen .np-art-area {
         position: absolute !important; left: 0 !important; top: 0 !important;
-        width: 42% !important; height: 100% !important;
-        flex-direction: column !important;
-        align-items: center !important; justify-content: center !important;
+        width: 44% !important; height: 100% !important;
+        flex-direction: column !important; align-items: center !important;
+        justify-content: center !important;
         padding: 24px 16px 80px 24px !important;
-        gap: 0 !important;
     }
     #np.fullscreen .np-art-shell {
-        width: min(280px, 36vw, 60vh) !important;
+        width: min(280px, 36vw, 62vh) !important;
     }
-    #np.fullscreen .np-lyrics-panel { display: none !important; }
-    #np.fullscreen #np-lyrics-panel-wrap { display: none !important; }
+    #np.fullscreen .np-art-area .np-lyrics-panel { display: none !important; }
     #np.fullscreen .np-panel {
         position: absolute !important; left: 0 !important; bottom: 0 !important;
-        width: 42% !important; padding: 8px 24px 16px !important;
+        width: 44% !important; padding: 8px 24px 16px !important;
         background: none !important; box-shadow: none !important;
     }
     #np.fullscreen #np-fs-lyrics {
-        position: absolute; right: 0; top: 0; width: 58%; height: 100%;
+        position: absolute; right: 0; top: 0; width: 56%; height: 100%;
         display: block; overflow: hidden;
         -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
         mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
         padding: 0 20px 0 16px; z-index: 10; pointer-events: none;
     }
     .np-x { top: 12px; left: 16px; }
-    #np.fullscreen .np-title {
-        font-size: clamp(13px, 1.4vw, 17px);
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
 }
