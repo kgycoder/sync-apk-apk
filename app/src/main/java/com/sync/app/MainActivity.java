@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
+import android.webkit.MimeTypeMap;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -25,11 +26,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -49,8 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private WebViewAssetLoader assetLoader;
 
     private final OkHttpClient http = new OkHttpClient.Builder()
-            .followRedirects(true)
-            .build();
+            .followRedirects(true).build();
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
@@ -73,19 +76,18 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         webView = findViewById(R.id.webView);
 
-        // ── WebViewAssetLoader: https://appassets.androidplatform.net/assets/ ──
-        // YouTube IFrame API는 file:// origin을 거부하므로
-        // https 도메인으로 assets를 서빙해야 재생 가능
         assetLoader = new WebViewAssetLoader.Builder()
-                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
-                .addPathHandler("/res/", new WebViewAssetLoader.ResourcesPathHandler(this))
+                .addPathHandler("/assets/",
+                        new WebViewAssetLoader.AssetsPathHandler(this))
+                .addPathHandler("/res/",
+                        new WebViewAssetLoader.ResourcesPathHandler(this))
                 .build();
 
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
         ws.setDomStorageEnabled(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
-        ws.setAllowFileAccess(false);         // AssetLoader 사용 시 불필요
+        ws.setAllowFileAccess(false);
         ws.setAllowContentAccess(false);
         ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         ws.setLoadWithOverviewMode(true);
@@ -93,7 +95,8 @@ public class MainActivity extends AppCompatActivity {
         ws.setCacheMode(WebSettings.LOAD_DEFAULT);
         ws.setBuiltInZoomControls(false);
         ws.setDisplayZoomControls(false);
-        ws.setDefaultTextEncodingName("UTF-8");   // 한글 깨짐 방지
+        // UTF-8 명시 — 한글 깨짐 방지
+        ws.setDefaultTextEncodingName("UTF-8");
         ws.setUserAgentString(
             "Mozilla/5.0 (Linux; Android 14; Pixel 8) " +
             "AppleWebKit/537.36 (KHTML, like Gecko) " +
@@ -101,25 +104,28 @@ public class MainActivity extends AppCompatActivity {
 
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         webView.setBackgroundColor(Color.parseColor("#08080D"));
-
-        // 파란색 tap highlight 제거
-        webView.setOnTouchListener((v, event) -> {
-            v.performClick();
-            return false;
-        });
-
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
-
         webView.setWebChromeClient(new WebChromeClient());
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(
                     WebView view, WebResourceRequest request) {
-                // AssetLoader가 appassets 도메인 요청을 assets 폴더로 라우팅
-                WebResourceResponse response =
+                WebResourceResponse resp =
                         assetLoader.shouldInterceptRequest(request.getUrl());
-                return response;
+                if (resp != null) {
+                    // ── charset=UTF-8 강제 지정 → 한글 깨짐 해결 ──
+                    String path = request.getUrl().getPath();
+                    String mime = guessMime(path);
+                    Map<String, String> headers = new HashMap<>();
+                    headers.put("Cache-Control", "no-cache");
+                    return new WebResourceResponse(
+                            mime, "UTF-8",
+                            200, "OK",
+                            headers,
+                            resp.getData());
+                }
+                return null;
             }
 
             @Override
@@ -129,9 +135,24 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // file:// 대신 https://appassets.androidplatform.net/assets/www/ 로 로드
         webView.loadUrl(
             "https://appassets.androidplatform.net/assets/www/index.html");
+    }
+
+    /** 파일 확장자로 MIME 타입 추론, 텍스트 계열은 charset=UTF-8 보장 */
+    private String guessMime(String path) {
+        if (path == null) return "application/octet-stream";
+        if (path.endsWith(".html") || path.endsWith(".htm")) return "text/html";
+        if (path.endsWith(".js"))  return "text/javascript";
+        if (path.endsWith(".css")) return "text/css";
+        if (path.endsWith(".json")) return "application/json";
+        if (path.endsWith(".png"))  return "image/png";
+        if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
+        if (path.endsWith(".svg")) return "image/svg+xml";
+        if (path.endsWith(".ico")) return "image/x-icon";
+        String ext = MimeTypeMap.getFileExtensionFromUrl(path);
+        String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+        return mime != null ? mime : "application/octet-stream";
     }
 
     // ══════════════════════════════════════════════════
@@ -169,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
             "window.__sync && window.__sync(atob('" + b64 + "'))", null));
     }
 
-    // ── Orientation ───────────────────────────────────
+    // ── Orientation ──────────────────────────────────
     private void setOrientation(String mode) {
         if ("landscape".equals(mode)) {
             setRequestedOrientation(
@@ -218,7 +239,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ── YouTube Search ────────────────────────────────
+    // ── Search ────────────────────────────────────────
     private void doSearch(JSONObject msg) {
         String query = msg.optString("query");
         String id = msg.optString("id", "0");
@@ -226,49 +247,35 @@ public class MainActivity extends AppCompatActivity {
             String KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
             String URL = "https://www.youtube.com/youtubei/v1/search?key="
                        + KEY + "&prettyPrint=false";
-
             JSONObject client = new JSONObject();
-            client.put("clientName", "WEB");
-            client.put("clientVersion", "2.20240101.00.00");
+            client.put("clientName", "WEB"); client.put("clientVersion", "2.20240101.00.00");
             client.put("hl", "ko"); client.put("gl", "KR");
-            JSONObject context = new JSONObject();
-            context.put("client", client);
+            JSONObject context = new JSONObject(); context.put("client", client);
             JSONObject body = new JSONObject();
-            body.put("context", context);
-            body.put("query", query);
+            body.put("context", context); body.put("query", query);
             body.put("params", "EgIQAQ%3D%3D");
-
-            Request req = new Request.Builder()
-                .url(URL)
-                .post(RequestBody.create(body.toString(),
-                      MediaType.parse("application/json")))
+            Request req = new Request.Builder().url(URL)
+                .post(RequestBody.create(body.toString(), MediaType.parse("application/json")))
                 .addHeader("X-YouTube-Client-Name", "1")
                 .addHeader("X-YouTube-Client-Version", "2.20240101.00.00")
                 .addHeader("Origin", "https://www.youtube.com")
                 .addHeader("Referer", "https://www.youtube.com/")
-                .addHeader("User-Agent",
-                    "Mozilla/5.0 (Linux; Android 14) " +
-                    "AppleWebKit/537.36 Chrome/124.0 Safari/537.36")
+                .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124.0 Safari/537.36")
                 .build();
-
             try (Response resp = http.newCall(req).execute()) {
                 if (!resp.isSuccessful() || resp.body() == null)
                     throw new IOException("HTTP " + resp.code());
                 JSONArray tracks = parseSearchResults(resp.body().string());
                 JSONObject result = new JSONObject();
-                result.put("type", "searchResult");
-                result.put("id", id);
-                result.put("success", true);
-                result.put("tracks", tracks);
+                result.put("type", "searchResult"); result.put("id", id);
+                result.put("success", true); result.put("tracks", tracks);
                 sendToJs(result);
             }
         } catch (Exception e) {
             try {
                 JSONObject err = new JSONObject();
-                err.put("type", "searchResult");
-                err.put("id", id);
-                err.put("success", false);
-                err.put("error", e.getMessage());
+                err.put("type", "searchResult"); err.put("id", id);
+                err.put("success", false); err.put("error", e.getMessage());
                 sendToJs(err);
             } catch (JSONException ignored) {}
         }
@@ -283,48 +290,29 @@ public class MainActivity extends AppCompatActivity {
             .getJSONObject("primaryContents")
             .getJSONObject("sectionListRenderer")
             .getJSONArray("contents");
-
         for (int s = 0; s < sections.length() && list.length() < 20; s++) {
             JSONObject sec = sections.getJSONObject(s);
             if (!sec.has("itemSectionRenderer")) continue;
-            JSONArray items = sec.getJSONObject("itemSectionRenderer")
-                               .getJSONArray("contents");
+            JSONArray items = sec.getJSONObject("itemSectionRenderer").getJSONArray("contents");
             for (int k = 0; k < items.length() && list.length() < 20; k++) {
                 JSONObject item = items.getJSONObject(k);
                 if (!item.has("videoRenderer")) continue;
                 JSONObject vr = item.getJSONObject("videoRenderer");
                 if (!vr.has("videoId")) continue;
-                String vid = vr.getString("videoId");
-                if (vid.isEmpty()) continue;
-
+                String vid = vr.getString("videoId"); if (vid.isEmpty()) continue;
                 String title = "";
-                if (vr.has("title") &&
-                    vr.getJSONObject("title").has("runs"))
-                    title = vr.getJSONObject("title")
-                               .getJSONArray("runs")
-                               .getJSONObject(0).optString("text","");
-
+                if (vr.has("title") && vr.getJSONObject("title").has("runs"))
+                    title = vr.getJSONObject("title").getJSONArray("runs").getJSONObject(0).optString("text","");
                 String ch = "";
-                if (vr.has("ownerText") &&
-                    vr.getJSONObject("ownerText").has("runs"))
-                    ch = vr.getJSONObject("ownerText")
-                            .getJSONArray("runs")
-                            .getJSONObject(0).optString("text","");
-                else if (vr.has("shortBylineText") &&
-                         vr.getJSONObject("shortBylineText").has("runs"))
-                    ch = vr.getJSONObject("shortBylineText")
-                            .getJSONArray("runs")
-                            .getJSONObject(0).optString("text","");
-
-                String durStr = vr.has("lengthText")
-                    ? vr.getJSONObject("lengthText").optString("simpleText","")
-                    : "";
-
+                if (vr.has("ownerText") && vr.getJSONObject("ownerText").has("runs"))
+                    ch = vr.getJSONObject("ownerText").getJSONArray("runs").getJSONObject(0).optString("text","");
+                else if (vr.has("shortBylineText") && vr.getJSONObject("shortBylineText").has("runs"))
+                    ch = vr.getJSONObject("shortBylineText").getJSONArray("runs").getJSONObject(0).optString("text","");
+                String durStr = vr.has("lengthText") ? vr.getJSONObject("lengthText").optString("simpleText","") : "";
                 if (!isMusicVideo(title, ch)) continue;
-
                 JSONObject t = new JSONObject();
-                t.put("id", vid); t.put("title", title);
-                t.put("channel", ch); t.put("dur", parseDur(durStr));
+                t.put("id", vid); t.put("title", title); t.put("channel", ch);
+                t.put("dur", parseDur(durStr));
                 t.put("thumb", "https://i.ytimg.com/vi/" + vid + "/mqdefault.jpg");
                 list.put(t);
             }
@@ -334,12 +322,9 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean isMusicVideo(String title, String channel) {
         String tl = title.toLowerCase(), cl = channel.toLowerCase();
-        for (String kw : new String[]{"vevo","topic","music","records",
-                "entertainment","sound","audio","official"})
+        for (String kw : new String[]{"vevo","topic","music","records","entertainment","sound","audio","official"})
             if (cl.contains(kw)) return true;
-        for (String kw : new String[]{"official","mv","m/v","music video",
-                "audio","lyrics","lyric","visualizer","live",
-                "performance","concert"})
+        for (String kw : new String[]{"official","mv","m/v","music video","audio","lyrics","lyric","visualizer","live","performance","concert"})
             if (tl.contains(kw)) return true;
         return false;
     }
@@ -348,39 +333,33 @@ public class MainActivity extends AppCompatActivity {
         if (s == null || s.isEmpty()) return 0;
         String[] p = s.split(":");
         try {
-            if (p.length == 3) return Integer.parseInt(p[0])*3600
-                + Integer.parseInt(p[1])*60 + Integer.parseInt(p[2]);
-            if (p.length == 2) return Integer.parseInt(p[0])*60
-                + Integer.parseInt(p[1]);
+            if (p.length == 3) return Integer.parseInt(p[0])*3600 + Integer.parseInt(p[1])*60 + Integer.parseInt(p[2]);
+            if (p.length == 2) return Integer.parseInt(p[0])*60 + Integer.parseInt(p[1]);
         } catch (NumberFormatException ignored) {}
         return 0;
     }
 
-    // ── Autocomplete ──────────────────────────────────
+    // ── Suggest ───────────────────────────────────────
     private void doSuggest(JSONObject msg) {
         String query = msg.optString("query");
         String id = msg.optString("id", "0");
         try {
-            String url = "https://suggestqueries.google.com/complete/search"
-                + "?client=firefox&ds=yt&q="
+            String url = "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q="
                 + java.net.URLEncoder.encode(query, "UTF-8") + "&hl=ko";
             Request req = new Request.Builder().url(url)
-                .addHeader("User-Agent", "Mozilla/5.0 Firefox/124.0")
-                .build();
+                .addHeader("User-Agent", "Mozilla/5.0 Firefox/124.0").build();
             try (Response resp = http.newCall(req).execute()) {
                 if (resp.body() == null) throw new IOException("empty");
                 String json = resp.body().string();
                 if (json.startsWith("window."))
-                    json = json.replaceFirst("^[^(]+\\(","")
-                               .replaceFirst("\\)\\s*$","");
+                    json = json.replaceFirst("^[^(]+\\(","").replaceFirst("\\)\\s*$","");
                 JSONArray arr = new JSONArray(json);
                 JSONArray sugs = new JSONArray();
                 if (arr.length() > 1) {
                     JSONArray inner = arr.getJSONArray(1);
-                    for (int i = 0; i < inner.length() && sugs.length()<8; i++) {
+                    for (int i = 0; i < inner.length() && sugs.length() < 8; i++) {
                         Object o = inner.get(i);
-                        String sv = (o instanceof JSONArray)
-                            ? ((JSONArray)o).optString(0,"") : o.toString();
+                        String sv = (o instanceof JSONArray) ? ((JSONArray)o).optString(0,"") : o.toString();
                         if (!sv.isEmpty()) sugs.put(sv);
                     }
                 }
@@ -393,8 +372,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 JSONObject err = new JSONObject();
                 err.put("type","suggestResult"); err.put("id",id);
-                err.put("success",false);
-                err.put("suggestions", new JSONArray());
+                err.put("success",false); err.put("suggestions", new JSONArray());
                 sendToJs(err);
             } catch (JSONException ignored) {}
         }
@@ -406,18 +384,13 @@ public class MainActivity extends AppCompatActivity {
         String channel  = msg.optString("channel");
         double dur      = msg.optDouble("duration", 0);
         String id       = msg.optString("id", "0");
-
         JSONArray lines = tryLrclib(rawTitle, channel, dur);
         if (lines == null) lines = tryNetEase(rawTitle, channel, dur);
-
         try {
             JSONObject result = new JSONObject();
             result.put("type","lyricsResult"); result.put("id",id);
-            if (lines != null) {
-                result.put("success",true); result.put("lines",lines);
-            } else {
-                result.put("success",false); result.put("lines",new JSONArray());
-            }
+            if (lines != null) { result.put("success",true); result.put("lines",lines); }
+            else { result.put("success",false); result.put("lines",new JSONArray()); }
             sendToJs(result);
         } catch (JSONException ignored) {}
     }
@@ -463,8 +436,7 @@ public class MainActivity extends AppCompatActivity {
         try (Response resp = http.newCall(new Request.Builder().url(url)
                 .addHeader("User-Agent","SYNCApp/1.0").build()).execute()) {
             if (resp.body() == null) return new JSONArray();
-            Object parsed = new org.json.JSONTokener(
-                resp.body().string()).nextValue();
+            Object parsed = new org.json.JSONTokener(resp.body().string()).nextValue();
             return parsed instanceof JSONArray ? (JSONArray)parsed : new JSONArray();
         }
     }
@@ -472,8 +444,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean hasSyncedResults(JSONArray arr) throws JSONException {
         if (arr == null) return false;
         for (int i = 0; i < arr.length(); i++)
-            if (!arr.getJSONObject(i).optString("syncedLyrics","").isEmpty())
-                return true;
+            if (!arr.getJSONObject(i).optString("syncedLyrics","").isEmpty()) return true;
         return false;
     }
 
@@ -482,8 +453,7 @@ public class MainActivity extends AppCompatActivity {
             String ct = cleanTitle(rawTitle), ca = cleanArtist(channel);
             String[] queries = {ct+" "+ca, ct, stripBrackets(ct)};
             for (String q : queries) {
-                List<long[]> ids = new ArrayList<>();
-                List<Double> scores = new ArrayList<>();
+                List<long[]> ids = new ArrayList<>(); List<Double> scores = new ArrayList<>();
                 searchNetEase(q, ct, ca, ytDur, ids, scores);
                 if (!ids.isEmpty()) {
                     Integer[] idx = new Integer[ids.size()];
@@ -500,8 +470,8 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) { return null; }
     }
 
-    private void searchNetEase(String query, String ct, String ca,
-            double ytDur, List<long[]> ids, List<Double> scores) {
+    private void searchNetEase(String query, String ct, String ca, double ytDur,
+                                List<long[]> ids, List<Double> scores) {
         try {
             String url = "https://music.163.com/api/search/get?s="
                 + java.net.URLEncoder.encode(query,"UTF-8") + "&type=1&limit=10";
@@ -537,17 +507,14 @@ public class MainActivity extends AppCompatActivity {
 
     private JSONArray fetchNetEaseLrc(long songId) {
         try {
-            String url = "https://music.163.com/api/song/lyric?id="
-                + songId + "&lv=1&kv=1&tv=-1";
+            String url = "https://music.163.com/api/song/lyric?id="+songId+"&lv=1&kv=1&tv=-1";
             try (Response resp = http.newCall(new Request.Builder().url(url)
                     .addHeader("Referer","https://music.163.com")
                     .addHeader("Cookie","appver=8.0.0").build()).execute()) {
                 if (resp.body()==null) return null;
                 JSONObject doc = new JSONObject(resp.body().string());
-                String lrc = doc.has("klyric")
-                    ? doc.getJSONObject("klyric").optString("lyric",null) : null;
-                if (lrc==null||lrc.isEmpty()) lrc = doc.has("lrc")
-                    ? doc.getJSONObject("lrc").optString("lyric",null) : null;
+                String lrc = doc.has("klyric") ? doc.getJSONObject("klyric").optString("lyric",null) : null;
+                if (lrc==null||lrc.isEmpty()) lrc = doc.has("lrc") ? doc.getJSONObject("lrc").optString("lyric",null) : null;
                 return (lrc!=null&&!lrc.isEmpty()) ? parseLrc(lrc) : null;
             }
         } catch (Exception e) { return null; }
@@ -580,45 +547,53 @@ public class MainActivity extends AppCompatActivity {
             Matcher m=p.matcher(line.trim());
             if(!m.find()) continue;
             String ms=(m.group(3)+"000").substring(0,3);
-            double t=Integer.parseInt(m.group(1))*60.0
-                +Integer.parseInt(m.group(2))
-                +Integer.parseInt(ms)/1000.0;
+            double t=Integer.parseInt(m.group(1))*60.0+Integer.parseInt(m.group(2))+Integer.parseInt(ms)/1000.0;
             if(t>last) last=t;
         }
         return last;
     }
 
-    private static final Pattern CREDIT_RX=Pattern.compile(
-        "^\\s*(?:作词|作曲|编曲|混音|制作人|出品|录音|母带|OP|SP" +
-        "|厂牌|发行|监制|制作|ISRC|专辑|歌手)\\s*[：:].{0,80}$");
-    private static final Pattern LRC_RX=
-        Pattern.compile("^\\[(\\d+):(\\d+)\\.(\\d+)\\](.*)");
+    private static final Pattern CREDIT_RX = Pattern.compile(
+        "^\\s*(?:作词|作曲|编曲|混音|制作人|出品|录音|母带|OP|SP|厂牌|发行|监制|制作|ISRC|专辑|歌手)\\s*[：:].{0,80}$");
+    private static final Pattern LRC_RX = Pattern.compile("^\\[(\\d+):(\\d+)\\.(\\d+)\\](.*)");
 
     private JSONArray parseLrc(String lrc) throws JSONException {
-        List<double[]> times=new ArrayList<>();
-        List<String> texts=new ArrayList<>();
-        for (String line:lrc.split("\n")) {
-            Matcher m=LRC_RX.matcher(line.trim());
-            if(!m.matches()) continue;
-            String text=m.group(4).trim();
-            if(text.isEmpty()||CREDIT_RX.matcher(text).matches()) continue;
-            String ms=(m.group(3)+"000").substring(0,3);
-            double t=Integer.parseInt(m.group(1))*60.0
-                +Integer.parseInt(m.group(2))
-                +Integer.parseInt(ms)/1000.0;
-            times.add(new double[]{t}); texts.add(text);
+        List<double[]> times = new ArrayList<>();
+        List<String> texts = new ArrayList<>();
+        for (String line : lrc.split("\n")) {
+            Matcher m = LRC_RX.matcher(line.trim());
+            if (!m.matches()) continue;
+            String text = m.group(4).trim();
+            if (text.isEmpty() || CREDIT_RX.matcher(text).matches()) continue;
+            String ms = (m.group(3)+"000").substring(0,3);
+            double t = Integer.parseInt(m.group(1))*60.0
+                     + Integer.parseInt(m.group(2))
+                     + Integer.parseInt(ms)/1000.0;
+            times.add(new double[]{t});
+            texts.add(text);
         }
-        Integer[] idx=new Integer[times.size()];
-        for(int i=0;i<idx.length;i++) idx[i]=i;
+        Integer[] idx = new Integer[times.size()];
+        for (int i=0;i<idx.length;i++) idx[i]=i;
         Arrays.sort(idx,(a,b)->Double.compare(times.get(a)[0],times.get(b)[0]));
-        JSONArray result=new JSONArray();
-        for(int i=0;i<idx.length;i++) {
-            int ci=idx[i];
-            double start=times.get(ci)[0];
-            double end=(i+1<idx.length)?times.get(idx[i+1])[0]:start+5.0;
-            JSONObject obj=new JSONObject();
-            obj.put("start",start); obj.put("end",end);
-            obj.put("text",texts.get(ci));
+        JSONArray result = new JSONArray();
+        for (int i=0;i<idx.length;i++) {
+            int ci = idx[i];
+            double start = times.get(ci)[0];
+            // ── end = 다음 줄 start + 0.3초 여유 (반주구간에도 가사 표시 유지) ──
+            // 마지막 줄은 start+8초
+            double end;
+            if (i+1 < idx.length) {
+                double nextStart = times.get(idx[i+1])[0];
+                double gap = nextStart - start;
+                // 반주 구간(gap > 4초)이면 start+3초까지만, 짧으면 nextStart까지
+                end = gap > 4.0 ? start + 3.0 : nextStart;
+            } else {
+                end = start + 8.0;
+            }
+            JSONObject obj = new JSONObject();
+            obj.put("start", start);
+            obj.put("end", end);
+            obj.put("text", texts.get(ci));
             result.put(obj);
         }
         return result;
@@ -650,9 +625,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override protected void onPause() { super.onPause(); webView.onPause(); }
     @Override protected void onResume() { super.onResume(); webView.onResume(); }
-    @Override protected void onDestroy() {
-        super.onDestroy(); executor.shutdown(); webView.destroy();
-    }
+    @Override protected void onDestroy() { super.onDestroy(); executor.shutdown(); webView.destroy(); }
     @Override public void onBackPressed() {
         webView.evaluateJavascript(
             "window.__onAndroidBack && window.__onAndroidBack()", null);
